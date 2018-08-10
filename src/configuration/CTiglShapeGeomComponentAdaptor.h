@@ -32,7 +32,7 @@ class CTiglUIDManager;
 class CTiglShapeGeomComponentAdaptor : public ITiglGeometricComponent
 {
 public:
-    CTiglShapeGeomComponentAdaptor(ITiglGeometricComponent* parent, CTiglUIDManager* uidMgr)
+    CTiglShapeGeomComponentAdaptor(const ITiglGeometricComponent* parent, CTiglUIDManager* uidMgr)
         : m_parent(parent)
         , m_uid("")
         , m_uidMgr(uidMgr)
@@ -73,7 +73,7 @@ public:
         return m_uid;
     }
 
-    PNamedShape GetLoft() OVERRIDE
+    PNamedShape GetLoft() const OVERRIDE
     {
         if (m_parent) {
             // The shape has to be build somewhere
@@ -97,7 +97,7 @@ private:
         }
     }
 
-    ITiglGeometricComponent* m_parent;
+    const ITiglGeometricComponent* m_parent;
     PNamedShape m_shape;
     std::string m_uid;
     CTiglUIDManager* m_uidMgr;
