@@ -850,7 +850,6 @@ void CCPACSWingComponentSegment::UpdateChordFace(unique_ptr<CTiglWingChordface>&
 {
     // update creation of segment list
     cache = make_unique<CTiglWingChordface>(*this, m_uidMgr);
-    cache->BuildChordSurface();
     cache->SetUID(GetDefaultedUID() + "_chordface");
 }
 
