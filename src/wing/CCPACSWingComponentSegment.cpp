@@ -223,25 +223,25 @@ CCPACSWing& CCPACSWingComponentSegment::GetWing() const {
 }
 
 // Getter for upper Shape
-TopoDS_Shape CCPACSWingComponentSegment::GetUpperShape()
+TopoDS_Shape CCPACSWingComponentSegment::GetUpperShape() const
 {
     return geomCache->upperShape->GetLoft()->Shape();
 }
 
 // Getter for lower Shape
-TopoDS_Shape CCPACSWingComponentSegment::GetLowerShape()
+TopoDS_Shape CCPACSWingComponentSegment::GetLowerShape() const
 {
     return geomCache->lowerShape->GetLoft()->Shape();
 }
 
 // Getter for inner segment face
-TopoDS_Face CCPACSWingComponentSegment::GetInnerFace()
+TopoDS_Face CCPACSWingComponentSegment::GetInnerFace() const
 {
     return geomCache->innerFace;
 }
 
 // Getter for outer segment face
-TopoDS_Face CCPACSWingComponentSegment::GetOuterFace()
+TopoDS_Face CCPACSWingComponentSegment::GetOuterFace() const
 {
     return geomCache->outerFace;
 }
