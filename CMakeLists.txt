@@ -123,7 +123,7 @@ if(OCE_FOUND)
   get_filename_component(OpenCASCADE_DLL_DIRECTORY ${TKERNEL_LOCATION} PATH)
 else(OCE_FOUND)
   message("OCE not found! Searching for OpenCASCADE.")
-  find_package(OpenCASCADE 6.6.0 REQUIRED COMPONENTS ${OCC_LIBS})
+  find_package(OpenCASCADE REQUIRED COMPONENTS ${OCC_LIBS})
 endif(OCE_FOUND)
 
 # search TiXI
