@@ -47,6 +47,7 @@
 #include <BRepBuilderAPI_MakeFace.hxx>
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <Precision.hxx>
+#include <Geom2dAPI_ProjectPointOnCurve.hxx>
 
 #include <cmath>
 #include <stdexcept>
@@ -219,17 +220,6 @@ namespace
         }
         return true;
     }
-    
-    template <class SplineAdapter>
-    int findKnot(const SplineAdapter& spline, double knot, double tolerance=1e-15)
-    {
-        for (int curSplineKnotIdx = 1; curSplineKnotIdx <= spline.getNKnots(); ++curSplineKnotIdx) {
-            if (std::abs(spline.getKnot(curSplineKnotIdx) - knot) < tolerance) {
-                return curSplineKnotIdx;
-            }
-        }
-        return -1;
-    }
 
     /**
      * @brief createCommonKnotsVectorImpl:
@@ -251,41 +241,41 @@ namespace
             throw tigl::CTiglError("B-splines don't have the same degree at least in one direction (u / v) in method createCommonKnotsVectorImpl!", TIGL_MATH_ERROR);
         }
 
-        // create a vector of all knots in chosen direction (u or v) of all splines
-        std::vector<double> resultKnots;
+        // The parametric tolerance must be smaller than half of the minimum knot distance
         for (typename std::vector<SplineAdapter>::const_iterator splineIt = splines_vector.begin(); splineIt != splines_vector.end(); ++splineIt) {
             const SplineAdapter& spline = *splineIt;
-            for (int knot_idx = 1; knot_idx <= spline.getNKnots(); ++knot_idx) {
-                resultKnots.push_back(spline.getKnot(knot_idx));
+            for (int iKnot = 1; iKnot < spline.getNKnots(); ++iKnot) {
+                double knotDist = spline.getKnot(iKnot+1) - spline.getKnot(iKnot);
+                par_tolerance = std::min(par_tolerance, knotDist / 2.);
             }
         }
 
-        // sort vector of all knots in given direction of all splines
-        std::sort(resultKnots.begin(), resultKnots.end());
-
-        // delete duplicate knots, so that in all_knots are all unique knots
-        resultKnots.erase(std::unique(resultKnots.begin(), resultKnots.end(), helper_function_unique(par_tolerance)), resultKnots.end());
-
-        // find highest multiplicities
-        std::vector<int> resultMults(resultKnots.size(), 0);
-        for (typename std::vector<SplineAdapter>::const_iterator splineIt = splines_vector.begin(); splineIt != splines_vector.end(); ++splineIt) {
+        // insert all knots in first spline
+        SplineAdapter& firstSpline = splines_vector[0];
+        for (typename std::vector<SplineAdapter>::const_iterator splineIt = splines_vector.begin()+1; splineIt != splines_vector.end(); ++splineIt) {
             const SplineAdapter& spline = *splineIt;
-            for (unsigned int knotIdx = 0; knotIdx < resultKnots.size(); ++knotIdx) {
-                // get multiplicity of current knot in surface
-                int splKnotIdx = findKnot(spline, resultKnots[knotIdx], par_tolerance);
-                if (splKnotIdx > 0) {
-                    resultMults[knotIdx] = std::max(resultMults[knotIdx], spline.getMult(splKnotIdx));
-                }
+            for (int knot_idx = 2; knot_idx < spline.getNKnots(); ++knot_idx) {
+                double knot = spline.getKnot(knot_idx);
+                int mult = spline.getMult(knot_idx);
+                firstSpline.insertKnot(knot, mult, par_tolerance);
             }
         }
 
-        // now insert missing knots in all splines
-        for (typename std::vector<SplineAdapter>::iterator splineIt = splines_vector.begin(); splineIt != splines_vector.end(); ++splineIt) {
+
+        // now insert knots from first into all others
+        for (typename std::vector<SplineAdapter>::iterator splineIt = splines_vector.begin()+1; splineIt != splines_vector.end(); ++splineIt) {
             SplineAdapter& spline = *splineIt;
-            for (unsigned int knotIdx = 0; knotIdx < resultKnots.size(); ++knotIdx) {
-                spline.insertKnot(resultKnots[knotIdx], resultMults[knotIdx], par_tolerance);
+            for (int knot_idx = 2; knot_idx < firstSpline.getNKnots(); ++knot_idx) {
+                double knot = firstSpline.getKnot(knot_idx);
+                int mult = firstSpline.getMult(knot_idx);
+                spline.insertKnot(knot, mult, par_tolerance);
+            }
+            if (spline.getNKnots() != firstSpline.getNKnots()) {
+                throw tigl::CTiglError("Unexpected error in Algorithm makeGeometryCompatibleImpl.\nPlease contact the developers.");
             }
         }
+
+
     } // makeGeometryCompatibleImpl
     
     template <class OccMatrix, class OccVector, class OccHandleVector>
@@ -645,6 +635,13 @@ Handle(Geom_BSplineCurve) CTiglBSplineAlgorithms::reparametrizeBSplineContinuous
 #ifdef MODEL_KINKS
     // remove kinks from breaks
     std::vector<double> kinks = CTiglBSplineAlgorithms::getKinkParameters(spline);
+    // convert kink parameters into reparamtetrized parameter using the
+    // inverse reparametrization function
+    for (size_t ikink = 0; ikink < kinks.size(); ++ikink) {
+        kinks[ikink] = Geom2dAPI_ProjectPointOnCurve(gp_Pnt2d(kinks[ikink], 0.), reparametrizing_spline)
+                           .LowerDistanceParameter();
+    }
+
     for (size_t ikink = 0; ikink < kinks.size(); ++ikink) {
         double kink = kinks[ikink];
         std::vector<double>::iterator it = std::find_if(breaks.begin(), breaks.end(), IsInsideTolerance(kink, par_tol));
