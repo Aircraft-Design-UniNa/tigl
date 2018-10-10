@@ -1,9 +1,13 @@
 cmake_minimum_required ( VERSION 2.6)
 
-option(TIGL_BINDINGS_JAVA_INTERNAL "Builds the python interface to the internal API(requires SWIG)" ON)
+option(TIGL_BINDINGS_JAVA_INTERNAL "Builds the Java interface to the internal API" ON)
 mark_as_advanced(TIGL_BINDINGS_JAVA_INTERNAL)
 
 if (TIGL_BINDINGS_JAVA_INTERNAL)
+
+  #-----------------------------------------------------------------------------------
+  # setup the c++ wrapper code for OCCT
+  #-----------------------------------------------------------------------------------
 
   set( CMAKE_CONFIGURATION_TYPES Debug;Release;Protected CACHE INTERNAL "" FORCE)
 
@@ -95,15 +99,28 @@ if (TIGL_BINDINGS_JAVA_INTERNAL)
 
   target_link_libraries( ${PROJECT} ${LINK_LIBRARIES} )
 
-  # echo Compile Java wrappers
-  # cd %~dp0OCCJava
-  # if not exist ..\jar\OCCJava mkdir ..\jar\OCCJava
-  # javac -d ..\jar\OCCJava *
-  #
-  # echo Create jar
-  # cd ..\jar\OCCJava
-  # jar -cf ..\OCCJavaWrapper.jar *
-  COMMAND javac -d *
-  jar -cf OCCJavaWrapper.jar *
+  #-----------------------------------------------------------------------------------
+  # setup the java wrapper classes and jar archive
+  #-----------------------------------------------------------------------------------
+
+  set(TIGLJAVAINTERNAL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/OCCJava/src)
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OCCJava/build.gradle.in ${CMAKE_CURRENT_BINARY_DIR}/build.gradle)
+	configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OCCJava/gradle.properties ${CMAKE_CURRENT_BINARY_DIR}/gradle.properties COPYONLY )
+  file(GLOB_RECURSE TIGL_JAVAINTERNAL_SRC "*.java")
+  SET(TIGL_INTERNAL_JAR "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}/tigl-occjava-${TIGL_VERSION}.jar")
+
+  add_custom_command(
+		OUTPUT ${TIGL_INTERNAL_JAR}
+		DEPENDS ${TIGL_JAVAINTERNAL_SRC}
+		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+		COMMAND ${Java_JAVA_EXECUTABLE} -classpath ${CMAKE_CURRENT_SOURCE_DIR}/OCCJava/gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain assemble
+	)
+	
+	ADD_CUSTOM_TARGET(
+		tigl-java-internal ALL 
+		DEPENDS ${TIGL_INTERNAL_JAR}
+	)
+	
+	install(FILES ${TIGL_INTERNAL_JAR} DESTINATION share/tigl3/java)
 
 endif(TIGL_BINDINGS_JAVA_INTERNAL)
